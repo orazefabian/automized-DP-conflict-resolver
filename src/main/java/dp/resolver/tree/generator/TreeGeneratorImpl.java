@@ -66,7 +66,7 @@ public class TreeGeneratorImpl implements TreeGenerator {
             e.printStackTrace();
         }
         this.model.analyzeModel();
-        callTree.computeLeafElements();
+        this.callTree.computeLeafElements();
         if (jarsToTraverseLeft())
             computeCallTree();
     }
