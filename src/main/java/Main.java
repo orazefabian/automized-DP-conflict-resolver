@@ -36,7 +36,8 @@ public class Main {
             }
         }
 
-        param = "/home/fabian/Desktop/Projects/runtime_conflict_sample/Project_A"; //mac
+        //testing purposes
+        //param = "/home/fabian/Desktop/Projects/runtime_conflict_sample/Project_A"; //mac
         //param = "/home/fabian/Desktop/Projects/GitHub/automized-dp-conflict-resolver"; //linux
 
         long time = System.currentTimeMillis();
