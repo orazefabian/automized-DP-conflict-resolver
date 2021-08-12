@@ -26,7 +26,7 @@ public class TreeGeneratorImpl implements TreeGenerator {
     private final String targetProjectPath;
     private final ModelFactory modelFactory;
     private final Map<String, Boolean> jars;
-    private final List<CallNode> conflicts;
+    private List<CallNode> conflicts;
     private final Set<String> neededJars;
     private final AnswerSetData answerSetData;
     private CallModel model;
@@ -112,6 +112,7 @@ public class TreeGeneratorImpl implements TreeGenerator {
 
     @Override
     public List<CallNode> getConflicts(ConflictType type) {
+        this.conflicts = new ArrayList<>();
         computeConflicts(type);
         return this.conflicts;
     }

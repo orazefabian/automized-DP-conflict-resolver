@@ -7,6 +7,8 @@ import dp.resolver.tree.generator.TreeGenerator;
 import dp.resolver.tree.element.CallNode;
 import org.junit.jupiter.api.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 
@@ -24,10 +26,51 @@ public class TestOnSampleProject {
     public static void setup() {
         initTargetPath();
 
+        prepareExpectedOutcomes();
+        prepareNeededJarsFromResources();
+
         answer = new AnswerSetData();
         CentralMavenAPI.setMaxVersionsNumFromCmr(5);
         tree = new TreeGeneratorImpl(testProjectPath, answer);
 
+        start();
+    }
+
+    private static void prepareNeededJarsFromResources() {
+        ProcessBuilder pb = new ProcessBuilder();
+
+        // run mvn install command for every needed jar in the resource folder, note that the order is important!
+        try {
+            mvnInstallJar("Project_D/3.0/");
+            mvnInstallJar("Project_D/2.0/");
+            mvnInstallJar("Project_D/1.0/");
+
+            mvnInstallJar("Project_C/1.0/");
+            mvnInstallJar("Project_C/2.0/");
+
+            mvnInstallJar("Project_B/1.0/");
+            mvnInstallJar("Project_B/2.0/");
+
+        }catch (IOException | InterruptedException e){
+            e.printStackTrace();
+            System.err.println("Failed setup, not able to complete installation of jars to local .m2 repo");
+        }
+    }
+
+    private static void mvnInstallJar(String jarPath) throws IOException, InterruptedException {
+        ProcessBuilder pb;
+        String cmd = "mvn compile install";
+        String cleanUpCmd = "mvn clean";
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            pb = new ProcessBuilder("cmd.exe", "/c", "cd " + getCurrDirectory() + "/src/test/resources/" + jarPath + " && " + cmd + " && " + cleanUpCmd);
+        } else {
+            pb = new ProcessBuilder("/bin/bash", "-c", "cd " + getCurrDirectory() + "/src/test/resources/" + jarPath + " ; " + cmd + " ; " + cleanUpCmd);
+        }
+        Process process = pb.start();
+        process.waitFor();
+    }
+
+    private static void prepareExpectedOutcomes() {
         answerOne = new ArrayList<>();
         answerOne.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_B/2.0/Project_B-2.0.jar");
         answerOne.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_C/2.0/Project_C-2.0.jar");
@@ -42,16 +85,14 @@ public class TestOnSampleProject {
 
         Collections.sort(answerOne);
         Collections.sort(answerTwo);
-
-        start();
     }
 
     private static void initTargetPath() {
-        if (isLinuxOS()) {
-            testProjectPath = "/home/" + System.getProperty("user.name") + "/Desktop/Projects/runtime_conflict_sample/Project_A/";
-        } else {
-            testProjectPath = "/Users/" + System.getProperty("user.name") + "/Projects/Sample/runtime_conflict_sample/Project_A/";
-        }
+        testProjectPath = getCurrDirectory() + "/src/test/resources/Project_A/";
+    }
+
+    private static String getCurrDirectory() {
+        return System.getProperty("user.dir");
     }
 
     private static boolean isLinuxOS() {
@@ -108,11 +149,13 @@ public class TestOnSampleProject {
         Assertions.assertArrayEquals(expectedAnswer.toArray(), answer.getAnswers().toArray());
     }
 
+
+
     @Test
     public void testCorrectConflictNodes() {
         List<CallNode> conflicts = tree.getConflicts(ConflictType.TYPE_3);
         testNodeAt0(conflicts);
-        testNodeAt1(conflicts);
+        Assertions.assertEquals(8, conflicts.size());
     }
 
     private void testNodeAt0(List<CallNode> conflicts) {
