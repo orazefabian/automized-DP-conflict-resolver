@@ -60,7 +60,7 @@ public class TestOnSampleProject {
 
     private static void mvnInstallJar(String jarPath) throws IOException, InterruptedException {
         ProcessBuilder pb;
-        String cmd = "mvn compile install";
+        String cmd = "mvn install";
         String cleanUpCmd = "mvn clean";
         if (System.getProperty("os.name").startsWith("Windows")) {
             pb = new ProcessBuilder("cmd.exe", "/c", "cd " + getCurrDirectory() + "/src/test/resources/" + jarPath + " && " + cmd + " && " + cleanUpCmd);
@@ -69,6 +69,7 @@ public class TestOnSampleProject {
         }
         Process process = pb.start();
         process.waitFor();
+        System.out.println("Installed jar with mvn install: " + jarPath );
     }
 
     private static void prepareExpectedOutcomes() {
@@ -148,7 +149,6 @@ public class TestOnSampleProject {
     @Test
     public void testCorrectAnswerArrays() {
         checkIfAnswersArePresentInExpectedArray();
-        //Assertions.assertArrayEquals(expectedAnswer.toArray(), answer.getAnswers().toArray());
     }
 
     @Test
