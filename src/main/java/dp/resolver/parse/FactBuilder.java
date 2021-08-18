@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 public class FactBuilder {
 
     private List<CallNode> conflictNodes;
-    private StringBuilder factsBuilder;
+    private Set<String> factsBuilderSet;
     private FileWriter writer;
     private final static String ROOT_DIR = System.getProperty("user.dir");
     private File factsFile;
@@ -59,14 +59,20 @@ public class FactBuilder {
         this.alreadyLoadedJars = new HashSet<>();
         this.alreadyParsedJars = new HashSet<>();
         this.conflictNodes = nodeList;
-        this.factsBuilder = new StringBuilder();
+        this.factsBuilderSet = new HashSet<>();
         this.factsFile = new File(ROOT_DIR + File.separator + "facts.lp");
         System.out.println(this.factsFile.getAbsolutePath());
         this.factsFile.createNewFile();
-        this.writer = new FileWriter(this.factsFile);
         this.currJarID = 1;
         generateFacts();
-        writer.write(this.factsBuilder.toString());
+        writeFactsToFile();
+    }
+
+    private void writeFactsToFile() throws IOException {
+        this.writer = new FileWriter(this.factsFile);
+        for (String fact : this.factsBuilderSet) {
+            writer.write(fact);
+        }
         writer.close();
     }
 
@@ -74,8 +80,8 @@ public class FactBuilder {
         return idMap;
     }
 
-    public String getFacts() {
-        return this.factsBuilder.toString();
+    public Set<String> getFacts() {
+        return this.factsBuilderSet;
     }
 
     /**
@@ -101,7 +107,9 @@ public class FactBuilder {
     private void parseIncludeJar(String jar) {
         parseJarFact(jar); // parse every needed jar and its method
         Integer id = this.idMap.get(jar);
-        this.factsBuilder.append("\nincludeJar(").append(id).append(").\n");
+        StringBuilder builder = new StringBuilder();
+        builder.append("\nincludeJar(").append(id).append(").\n");
+        this.factsBuilderSet.add(builder.toString());
     }
 
 
@@ -139,8 +147,10 @@ public class FactBuilder {
             String signature = inv.getMethodSignature().split(name)[1];
             int paramCount = computeParamCount(signature);
             if (!fromClass.endsWith(name)) {
-                this.factsBuilder.append("\ninvocation(").append(fromID).append(",\"").append(fromClass).append("\",\"")
+                StringBuilder builder = new StringBuilder();
+                builder.append("\ninvocation(").append(fromID).append(",\"").append(fromClass).append("\",\"")
                         .append(name).append("\",").append(paramCount).append(").\n");
+                this.factsBuilderSet.add(builder.toString());
             }
         }
     }
@@ -205,8 +215,10 @@ public class FactBuilder {
                     String signature = invocation.getMethodSignature().split(name)[1];
                     int paramCount = computeParamCount(signature);
                     if (!declaringClass.endsWith(name)) {
-                        this.factsBuilder.append("\ninvocation(").append(fromID).append(",\"").append(declaringClass).append("\",\"")
+                        StringBuilder builder = new StringBuilder();
+                        builder.append("\ninvocation(").append(fromID).append(",\"").append(declaringClass).append("\",\"")
                                 .append(name).append("\",").append(paramCount).append(").\n");
+                        this.factsBuilderSet.add(builder.toString());
                     }
                 }
             }
@@ -243,7 +255,9 @@ public class FactBuilder {
                 this.idMap.put(jarPath, this.currJarID++);
                 int nextJarID = this.idMap.get(jarPath);
                 // this line creates the fact in asp language syntax
-                this.factsBuilder.append("\njar(").append(nextJarID).append(",\"").append(groupID).append("\",\"").append(artifactID).append("\",\"").append(version).append("\").\n");
+                StringBuilder builder = new StringBuilder();
+                builder.append("\njar(").append(nextJarID).append(",\"").append(groupID).append("\",\"").append(artifactID).append("\",\"").append(version).append("\").\n");
+                this.factsBuilderSet.add(builder.toString());
             }
             parseMethodFact(jarPath);
         } catch (StringIndexOutOfBoundsException e) {
@@ -260,8 +274,10 @@ public class FactBuilder {
         //Object[] objects = JarParser.getClassNames(jarPath);
         List<MessagingClazz> jarClassList = AssistParser.getJarClassList(jarPath);
         for (MessagingClazz clazz : jarClassList) {
-            this.factsBuilder.append("class(").append(this.idMap.get(jarPath)).append(",\"")
+            StringBuilder builder = new StringBuilder();
+            builder.append("class(").append(this.idMap.get(jarPath)).append(",\"")
                     .append(clazz.getClazzName().replace(".class", "")).append("\").\n");
+            this.factsBuilderSet.add(builder.toString());
         }
     }
 
@@ -279,9 +295,11 @@ public class FactBuilder {
                     for (MessagingMethod methodInformation : clazz.getMethods()) {
                         String methodName = methodInformation.getMethodName();
                         Long numberOfParams = methodInformation.getNumberOfParams();
-                        this.factsBuilder.append("method(").append(this.idMap.get(jarPath)).append(",\"").append(clazz.getFullQualifiedName().replace(".class", "")
+                        StringBuilder builder = new StringBuilder();
+                        builder.append("method(").append(this.idMap.get(jarPath)).append(",\"").append(clazz.getFullQualifiedName().replace(".class", "")
                                 .replace(File.separator, ".")).append("\",\"").
                                 append(methodName).append("\",").append(numberOfParams).append(").\n");
+                        this.factsBuilderSet.add(builder.toString());
                     }
                 }
             }
@@ -317,7 +335,9 @@ public class FactBuilder {
                 int toID = 0;
                 if (this.idMap.containsKey(dp)) {
                     toID = this.idMap.get(dp);
-                    this.factsBuilder.append("connection(").append(fromID).append(",").append(toID).append(").\n");
+                    StringBuilder builder = new StringBuilder();
+                    builder.append("connection(").append(fromID).append(",").append(toID).append(").\n");
+                    this.factsBuilderSet.add(builder.toString());
                 }
             }
         }
@@ -342,7 +362,9 @@ public class FactBuilder {
                     // parse connection if from id and to id are present in idMap
                     if (this.idMap.containsKey(jarDp)) {
                         int toID = this.idMap.get(jarDp);
-                        this.factsBuilder.append("connection(").append(fromID).append(",").append(toID).append(").\n");
+                        StringBuilder builder = new StringBuilder();
+                        builder.append("connection(").append(fromID).append(",").append(toID).append(").\n");
+                        this.factsBuilderSet.add(builder.toString());
                     }
                 }
             } catch (NullPointerException e) {
@@ -359,7 +381,7 @@ public class FactBuilder {
      */
     private void parseOptionalJarFacts(String jarPath) {
         if (!this.idMap.containsKey(jarPath)) {
-            this.factsBuilder.append("\n");
+            this.factsBuilderSet.add("\n");
             String repoSeparator = "repository" + File.separator;
             String[] construct = jarPath.split(Pattern.quote(File.separator));
             String version = construct[construct.length - 2];
@@ -368,7 +390,9 @@ public class FactBuilder {
             this.idMap.put(jarPath, this.currJarID++);
             int nextJarID = this.idMap.get(jarPath);
             // this line creates the fact in asp language syntax
-            this.factsBuilder.append("\njar(").append(nextJarID).append(",\"").append(groupID).append("\",\"").append(artifactID).append("\",\"").append(version).append("\").\n");
+            StringBuilder builder = new StringBuilder();
+            builder.append("\njar(").append(nextJarID).append(",\"").append(groupID).append("\",\"").append(artifactID).append("\",\"").append(version).append("\").\n");
+            this.factsBuilderSet.add(builder.toString());
             //Object[] classNames = JarParser.getClassNames(jarPath);
             parseMethodFact(jarPath);
         }

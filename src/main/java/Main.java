@@ -36,8 +36,9 @@ public class Main {
             }
         }
 
-        //param = "/Users/fabian/Projects/automized-DP-conflict-resolver/automized-dp-conflict-resolver"; //mac
-        param = "/home/fabian/Desktop/Projects/GitHub/automized-dp-conflict-resolver"; //linux
+        //testing purposes
+        //param = "/home/fabian/Desktop/Projects/runtime_conflict_sample/Project_A"; //mac
+        //param = "/home/fabian/Desktop/Projects/GitHub/automized-dp-conflict-resolver"; //linux
 
         long time = System.currentTimeMillis();
         TreeGenerator tree;

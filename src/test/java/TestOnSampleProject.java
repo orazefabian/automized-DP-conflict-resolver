@@ -1,3 +1,4 @@
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import dp.api.maven.CentralMavenAPI;
 import dp.resolver.parse.FactBuilder;
 import dp.resolver.asp.AnswerSetData;
@@ -7,6 +8,8 @@ import dp.resolver.tree.generator.TreeGenerator;
 import dp.resolver.tree.element.CallNode;
 import org.junit.jupiter.api.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 
@@ -24,17 +27,59 @@ public class TestOnSampleProject {
     public static void setup() {
         initTargetPath();
 
+        prepareExpectedOutcomes();
+        prepareNeededJarsFromResources();
+
         answer = new AnswerSetData();
         CentralMavenAPI.setMaxVersionsNumFromCmr(5);
         tree = new TreeGeneratorImpl(testProjectPath, answer);
 
+        start();
+    }
+
+    private static void prepareNeededJarsFromResources() {
+        ProcessBuilder pb = new ProcessBuilder();
+
+        // run mvn install command for every needed jar in the resource folder, note that the order is important!
+        try {
+            mvnInstallJar("Project_D/3.0/");
+            mvnInstallJar("Project_D/2.0/");
+            mvnInstallJar("Project_D/1.0/");
+
+            mvnInstallJar("Project_C/1.0/");
+            mvnInstallJar("Project_C/2.0/");
+
+            mvnInstallJar("Project_B/1.0/");
+            mvnInstallJar("Project_B/2.0/");
+
+        }catch (IOException | InterruptedException e){
+            e.printStackTrace();
+            System.err.println("Failed setup, not able to complete installation of jars to local .m2 repo");
+        }
+    }
+
+    private static void mvnInstallJar(String jarPath) throws IOException, InterruptedException {
+        ProcessBuilder pb;
+        String cmd = "mvn install";
+        String cleanUpCmd = "mvn clean";
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            pb = new ProcessBuilder("cmd.exe", "/c", "cd " + getCurrDirectory() + "/src/test/resources/" + jarPath + " && " + cmd + " && " + cleanUpCmd);
+        } else {
+            pb = new ProcessBuilder("/bin/bash", "-c", "cd " + getCurrDirectory() + "/src/test/resources/" + jarPath + " ; " + cmd + " ; " + cleanUpCmd);
+        }
+        Process process = pb.start();
+        process.waitFor();
+        System.out.println("Installed jar with mvn install: " + jarPath );
+    }
+
+    private static void prepareExpectedOutcomes() {
         answerOne = new ArrayList<>();
         answerOne.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_B/2.0/Project_B-2.0.jar");
-        answerOne.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_C/2.0/Project_C-2.0.jar");
+        answerOne.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_C/1.0/Project_C-1.0.jar");
 
         answerTwo = new ArrayList<>();
         answerTwo.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_B/2.0/Project_B-2.0.jar");
-        answerTwo.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_C/1.0/Project_C-1.0.jar");
+        answerTwo.add(getOSPrefixForM2Repo() + "/.m2/repository/org/runtime/conflict/Project_C/2.0/Project_C-2.0.jar");
 
         expectedAnswer = new ArrayList<>();
         expectedAnswer.add(answerOne);
@@ -42,16 +87,14 @@ public class TestOnSampleProject {
 
         Collections.sort(answerOne);
         Collections.sort(answerTwo);
-
-        start();
     }
 
     private static void initTargetPath() {
-        if (isLinuxOS()) {
-            testProjectPath = "/home/" + System.getProperty("user.name") + "/Desktop/Projects/runtime_conflict_sample/Project_A/";
-        } else {
-            testProjectPath = "/Users/" + System.getProperty("user.name") + "/Projects/Sample/runtime_conflict_sample/Project_A/";
-        }
+        testProjectPath = getCurrDirectory() + "/src/test/resources/Project_A/";
+    }
+
+    private static String getCurrDirectory() {
+        return System.getProperty("user.dir");
     }
 
     private static boolean isLinuxOS() {
@@ -105,14 +148,42 @@ public class TestOnSampleProject {
 
     @Test
     public void testCorrectAnswerArrays() {
-        Assertions.assertArrayEquals(expectedAnswer.toArray(), answer.getAnswers().toArray());
+        checkIfAnswersArePresentInExpectedArray();
     }
 
     @Test
     public void testCorrectConflictNodes() {
         List<CallNode> conflicts = tree.getConflicts(ConflictType.TYPE_3);
         testNodeAt0(conflicts);
-        testNodeAt1(conflicts);
+        Assertions.assertEquals(8, conflicts.size());
+    }
+
+    private void checkIfAnswersArePresentInExpectedArray() {
+        for (int i = 0; i < answer.getAnswers().size(); i++) {
+            List<String> currAnswer = answer.getAnswers().get(i);
+            boolean foundEqual = false;
+            for (int j = 0; j < expectedAnswer.size(); j++) {
+                if (compareAnswers(currAnswer, expectedAnswer.get(j))){
+                    foundEqual = true;
+                }
+            }
+            Assertions.assertTrue(foundEqual);
+        }
+    }
+
+    private boolean compareAnswers(List<String> currAnswer, List<String> expectedAnswer) {
+        boolean isEquivalent = true;
+        if (currAnswer.size() == expectedAnswer.size()){
+            for (int i = 0; i < currAnswer.size(); i++) {
+                if (!expectedAnswer.contains(currAnswer.get(i))){
+                    isEquivalent = false;
+                    break;
+                }
+            }
+        }else {
+            isEquivalent = false;
+        }
+        return isEquivalent;
     }
 
     private void testNodeAt0(List<CallNode> conflicts) {
